@@ -33,6 +33,7 @@ async function run() {
 
         const userCollection = client.db('ParcelDB').collection('users')
         const parcelCollection = client.db('ParcelDB').collection('parcels')
+        const deliveryCollection = client.db('ParcelDB').collection('deliveries')
 
 
 
@@ -128,6 +129,33 @@ async function run() {
             const result = await parcelCollection.updateOne(query, updatedDoc);
             res.send(result);
         });
+        app.patch('/manage-parcel/:id', async (req, res) => {
+            const id = req.params.id
+            const filter = { _id: new ObjectId(id) }
+            const deliveryInfo = req.body
+            if (deliveryInfo.deliveryManId) {
+                const query = { _id: new ObjectId(deliveryInfo.deliveryManId) }
+                const deliveryMan = await userCollection.findOne(query)
+                if (deliveryMan) {
+                    const updatedDoc = {
+                        $set: {
+                            deliveryName: deliveryMan.name,
+                            deliveryManId: deliveryInfo.deliveryManId,
+                            approxDeliveryDate: deliveryInfo.approxDelivery,
+                            deliveryEmail: deliveryMan.email,
+                            status: "InTransit",
+                        }
+                    }
+                    // console.log(result.name);
+                    const result = await parcelCollection.updateOne(filter, updatedDoc)
+                    res.send(result)
+
+                }
+
+            }
+            // console.log(deliveryInfo.deliveryManId, filter);
+
+        })
 
 
         //cancel parcel
@@ -149,6 +177,62 @@ async function run() {
             const result = await parcelCollection.find(query).toArray()
             res.send(result)
         })
+        app.get('/all-parcel', async (req, res) => {
+            const result = await parcelCollection.find().toArray()
+            res.send(result)
+        })
+
+
+
+        // find delivery man
+        app.get('/delivery-men', async (req, res) => {
+            const filter = { role: "DeliveryMan" }
+            const result = await userCollection.find(filter).toArray()
+            res.send(result)
+        })
+
+        //my delivery
+        app.get('/my-delivery', async (req, res) => {
+            const email = req.query.email
+            // console.log(email);
+            const query = { deliveryEmail: email }
+            const result = await parcelCollection.find(query).toArray()
+            res.send(result)
+        })
+
+
+        app.post('/deliveries/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const delivery = req.body;
+
+            // console.log(delivery.deliveredManId);
+
+            if (delivery.deliveredManId) {
+                const filter = { _id: new ObjectId(delivery.deliveredManId) };
+                const updateDeliveryMan = {
+                    $inc: { totalDelivered: 1 }
+                };
+                await userCollection.updateOne(filter, updateDeliveryMan);
+            }
+
+            if (query) {
+                const updatedDoc = {
+                    $set: {
+                        status: 'Delivered'
+                    }
+                };
+                await parcelCollection.updateOne(query, updatedDoc);
+            }
+
+            const finalResult = await deliveryCollection.insertOne(delivery);
+            res.send(finalResult);
+        });
+
+
+
+
+
 
 
         await client.db("admin").command({ ping: 1 });
