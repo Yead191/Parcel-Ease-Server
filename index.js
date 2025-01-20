@@ -34,6 +34,7 @@ async function run() {
         const userCollection = client.db('ParcelDB').collection('users')
         const parcelCollection = client.db('ParcelDB').collection('parcels')
         const deliveryCollection = client.db('ParcelDB').collection('deliveries')
+        const reviewCollection = client.db('ParcelDB').collection('reviews')
 
 
 
@@ -228,6 +229,49 @@ async function run() {
             const finalResult = await deliveryCollection.insertOne(delivery);
             res.send(finalResult);
         });
+
+
+
+        //review 
+        app.post('/reviews/:id', async (req, res) => {
+            const id = req.params.id
+            const filter = { _id: new ObjectId(id) }
+            const reviewInfo = req.body
+            if (reviewInfo.deliveryManUID) {
+                const userFilter = { _id: new ObjectId(reviewInfo.deliveryManUID) }
+                const newReview = parseFloat(reviewInfo.rating);
+                const updatedUserDoc = {
+                    $inc: {
+                        reviewCount: 1,
+                        totalRating: newReview,
+                    }
+
+                }
+                const userResult = await userCollection.updateOne(userFilter, updatedUserDoc)
+            }
+            if (reviewInfo.parcelStatus) {
+                const updatedParcelDoc = {
+                    $set: {
+                        reviewStatus: reviewInfo.parcelStatus
+                    }
+                }
+                const parcelResult = await parcelCollection.updateOne(filter, updatedParcelDoc)
+
+            }
+            const finalResult = await reviewCollection.insertOne(reviewInfo)
+            res.send(finalResult)
+
+        })
+        // app.get('/reviews', async (req, res) => {
+        //     const result = await reviewCollection.find().toArray()
+        //     res.send(result)
+        // })
+        app.get('/reviews', async (req, res) => {
+            const email = req.query.email
+            const filter = { deliveryManEmail: email }
+            const result = await reviewCollection.find(filter).toArray()
+            res.send(result)
+        })
 
 
 
