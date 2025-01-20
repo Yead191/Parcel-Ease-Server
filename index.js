@@ -5,6 +5,7 @@ const express = require('express');
 const cors = require('cors');
 const app = express()
 const port = process.env.PORT || 5000
+const moment = require("moment");
 
 
 //middleware
@@ -182,6 +183,36 @@ async function run() {
             const result = await parcelCollection.find().toArray()
             res.send(result)
         })
+
+        app.get('/parcels/search', async (req, res) => {
+            try {
+                const { from, to } = req.query;
+
+                if (!from || !to) {
+                    return res.status(400).json({ error: 'Both "from" and "to" dates are required' });
+                }
+
+
+                const formattedFrom = moment(new Date(from)).format("DD/MM/YYYY");
+                const formattedTo = moment(new Date(to)).format("DD/MM/YYYY");
+
+
+                const filter = {
+                    bookingDate: {
+                        $gte: formattedFrom,
+                        $lte: formattedTo,
+                    },
+                };
+
+                const parcels = await parcelCollection.find(filter).toArray();
+                res.json(parcels);
+            } catch (error) {
+                console.error('Error fetching parcels:', error);
+                res.status(500).json({ error: 'Failed to fetch parcels' });
+            }
+        });
+
+
 
 
 
