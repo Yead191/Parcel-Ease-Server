@@ -81,6 +81,18 @@ async function run() {
             }
             next()
         }
+        //verify Delivery Man 
+        const verifyDelivery = async (req, res, next) => {
+            const email = req.decoded.email
+            const query = { email: email }
+            const user = await userCollection.findOne(query)
+            const isDeliveryMan = user?.role === 'DeliveryMan'
+            if (!isDeliveryMan) {
+                return res.status(403).send({ message: 'forbidden-access' })
+
+            }
+            next()
+        }
 
 
 
@@ -103,20 +115,20 @@ async function run() {
             const result = await userCollection.find(filter).toArray()
             res.send(result)
         })
-        app.get('/all-users', async (req, res) => {
+        app.get('/all-users', verifyToken, verifyAdmin, async (req, res) => {
             // console.log(req.query);
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 5;
             const skip = (page - 1) * limit;
-        
+
             const totalUsers = await userCollection.countDocuments();
             const users = await userCollection.find().skip(skip).limit(limit).toArray();
-        
+
             res.send({ totalUsers, users });
         });
-        
 
-        app.patch('/user/:id', async (req, res) => {
+
+        app.patch('/user/:id', verifyToken, async (req, res) => {
             const id = req.params.id
             const user = req.body
             const filter = { _id: new ObjectId(id) }
@@ -132,7 +144,7 @@ async function run() {
             const result = await userCollection.updateOne(filter, updatedDoc)
             res.send(result)
         })
-        app.patch('/user/role/:id', async (req, res) => {
+        app.patch('/user/role/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id
             const user = req.body
             const filter = { _id: new ObjectId(id) }
@@ -176,7 +188,7 @@ async function run() {
 
 
         //parcel
-        app.post('/parcels', async (req, res) => {
+        app.post('/parcels', verifyToken, async (req, res) => {
             const parcel = req.body
             const result = await parcelCollection.insertOne(parcel)
             res.send(result)
@@ -188,7 +200,7 @@ async function run() {
             const result = await parcelCollection.findOne(query);
             res.send(result);
         });
-        app.patch('/parcel/:id', async (req, res) => {
+        app.patch('/parcel/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
             const parcel = req.body
             const query = { _id: new ObjectId(id) };
@@ -211,7 +223,7 @@ async function run() {
             const result = await parcelCollection.updateOne(query, updatedDoc);
             res.send(result);
         });
-        app.patch('/manage-parcel/:id', async (req, res) => {
+        app.patch('/manage-parcel/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id
             const filter = { _id: new ObjectId(id) }
             const deliveryInfo = req.body
@@ -241,7 +253,7 @@ async function run() {
 
 
         //cancel parcel
-        app.patch('/parcel/cancel/:id', async (req, res) => {
+        app.patch('/parcel/cancel/:id', verifyToken, async (req, res) => {
             const id = req.params.id
             const filter = { _id: new ObjectId(id) }
             const updatedDoc = {
@@ -253,7 +265,7 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/parcels', async (req, res) => {
+        app.get('/parcels', verifyToken, async (req, res) => {
             const email = req.query.email
             const query = { email: email }
             const result = await parcelCollection.find(query).toArray()
@@ -264,7 +276,7 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/parcels/search', async (req, res) => {
+        app.get('/parcels/search', verifyToken, verifyAdmin, async (req, res) => {
             try {
                 const { from, to } = req.query;
 
@@ -297,14 +309,14 @@ async function run() {
 
 
         // find delivery man
-        app.get('/delivery-men', async (req, res) => {
+        app.get('/delivery-men', verifyToken, verifyAdmin, async (req, res) => {
             const filter = { role: "DeliveryMan" }
             const result = await userCollection.find(filter).toArray()
             res.send(result)
         })
 
         //my delivery
-        app.get('/my-delivery', async (req, res) => {
+        app.get('/my-delivery', verifyToken, verifyDelivery, async (req, res) => {
             const email = req.query.email
             // console.log(email);
             const query = { deliveryEmail: email }
@@ -313,7 +325,7 @@ async function run() {
         })
 
 
-        app.post('/deliveries/:id', async (req, res) => {
+        app.post('/deliveries/:id', verifyToken, verifyDelivery, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const delivery = req.body;
@@ -344,7 +356,7 @@ async function run() {
 
 
         //review 
-        app.post('/reviews/:id', async (req, res) => {
+        app.post('/reviews/:id', verifyToken, async (req, res) => {
             const id = req.params.id
             const filter = { _id: new ObjectId(id) }
             const reviewInfo = req.body
@@ -377,7 +389,7 @@ async function run() {
         //     const result = await reviewCollection.find().toArray()
         //     res.send(result)
         // })
-        app.get('/reviews', async (req, res) => {
+        app.get('/reviews', verifyToken, verifyDelivery, async (req, res) => {
             const email = req.query.email
             const filter = { deliveryManEmail: email }
             const result = await reviewCollection.find(filter).toArray()
@@ -422,12 +434,33 @@ async function run() {
             const result = await paymentCollection.insertOne(payment)
             res.send(result)
         })
-        app.get('/payment/:email', async (req, res) => {
+        app.get('/payment/:email', verifyToken, async (req, res) => {
             const email = req.params.email
             const query = { email: email }
             const result = await paymentCollection.find(query).toArray()
             res.send(result)
         })
+
+
+        //all stats
+        app.get('/stats', async (req, res) => {
+            const users = await userCollection.estimatedDocumentCount();
+            const deliveries = await deliveryCollection.estimatedDocumentCount();
+            const totalBooking = await parcelCollection.estimatedDocumentCount();
+
+            const result = await paymentCollection.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        totalRevenue: { $sum: { $toDouble: "$price" } } 
+                    }
+                }
+            ]).toArray();
+
+            // console.log(result);
+            const revenue = result.length > 0 ? result[0].totalRevenue : 0;
+            res.send({ users, deliveries, totalBooking, revenue });
+        });
 
 
 
