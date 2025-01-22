@@ -353,6 +353,14 @@ async function run() {
             res.send(finalResult);
         });
 
+        app.get('/top-delivery-men', async (req, res) => {
+            const filter = { role: "DeliveryMan" };
+            const result = await userCollection
+                .find(filter)
+                .sort({ totalDelivered: -1 }) 
+                .toArray();
+            res.send(result);
+        });
 
 
         //review 
@@ -452,7 +460,7 @@ async function run() {
                 {
                     $group: {
                         _id: null,
-                        totalRevenue: { $sum: { $toDouble: "$price" } } 
+                        totalRevenue: { $sum: { $toDouble: "$price" } }
                     }
                 }
             ]).toArray();
