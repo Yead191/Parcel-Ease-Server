@@ -184,6 +184,13 @@ async function run() {
             }
             res.send({ deliveryMan })
         })
+        //delete user
+        app.delete('/users/delete/:id', verifyToken, verifyAdmin, async (req, res) => {
+            const id = req.params.id
+            const filter = { _id: new ObjectId(id) }
+            const result = await userCollection.deleteOne(filter)
+            res.send(result)
+        })
 
 
 
@@ -247,7 +254,7 @@ async function run() {
                 }
 
             }
-            // console.log(deliveryInfo.deliveryManId, filter);
+
 
         })
 
@@ -357,7 +364,7 @@ async function run() {
             const filter = { role: "DeliveryMan" };
             const result = await userCollection
                 .find(filter)
-                .sort({ totalDelivered: -1 }) 
+                .sort({ totalDelivered: -1 })
                 .toArray();
             res.send(result);
         });
